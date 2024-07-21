@@ -1,0 +1,91 @@
+!pip install openai streamlit pyngrok
+
+import os
+from getpass import getpass
+from google.colab import files
+import json
+
+# Set up OpenAI API key
+os.environ['OPENAI_API_KEY'] = getpass('Enter your OpenAI API key:')
+
+# Upload JSON file
+uploaded = files.upload()
+
+with open('Sample Question Answers.json', 'r') as file:
+    corpus = json.load(file)
+
+chatbot_code = '''
+import json
+import streamlit as st
+import os
+
+# Load corpus from the provided JSON file
+def load_corpus(filepath):
+    with open(filepath, 'r') as file:
+        return json.load(file)
+
+# Search for an answer in the corpus
+def get_answer_from_corpus(question, corpus):
+    for item in corpus:
+        if question.lower() in item['question'].lower():
+            return item['answer']
+    return None
+
+# Load corpus data
+corpus = load_corpus('Sample Question Answers.json')
+
+# Streamlit UI
+st.title("Wine Business Chatbot")
+st.write("Ask me anything about our wines and tasting room!")
+
+# Store chat history
+if 'history' not in st.session_state:
+    st.session_state['history'] = []
+
+# User input
+user_input = st.text_input("You:", "")
+
+if user_input:
+    # Check for answer in corpus
+    answer = get_answer_from_corpus(user_input, corpus)
+
+    if answer:
+        st.session_state['history'].append((user_input, answer))
+    else:
+        # Provide default response if question not in corpus
+        answer = "Please contact the business directly for more information."
+        st.session_state['history'].append((user_input, answer))
+
+    # Display chat history
+    for q, a in st.session_state['history']:
+        st.write(f"**You:** {q}")
+        st.write(f"**Bot:** {a}")
+
+# Instructions to run the code
+st.write("""
+## Instructions to Run the Code
+1. Make sure you have your OpenAI API key set as an environment variable `OPENAI_API_KEY`.
+2. Install required packages: `pip install openai streamlit`
+3. Save the provided JSON file in the same directory as this script.
+4. Run the Streamlit app: `streamlit run <name_of_this_script>.py`
+""")
+'''
+
+with open('chatbot.py', 'w') as file:
+    file.write(chatbot_code)
+
+
+
+from pyngrok import ngrok
+
+# Authenticate ngrok
+ngrok_token = getpass('Enter your ngrok authtoken:')
+ngrok.set_auth_token(ngrok_token)
+
+# Expose the Streamlit app
+public_url = ngrok.connect(8501)
+print(f'Streamlit app running at: {public_url}')
+
+# Run the Chatbot
+!streamlit run chatbot.py &
+
